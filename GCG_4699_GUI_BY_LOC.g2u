@@ -1,0 +1,226 @@
+Program.Sub.ScreenSU.Start
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+V.Global.sWSLoc.Declare(String)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'DECLARE VARIABLES
+V.Local.sGroup.Declare(String)
+V.Local.sSQL.Declare(String)
+
+'FEQ 8.11.2017 Project originally 1211 written for MIR. Don Finch downloaded it to Roura's system and it kept erring out when opening the GUI. Might be that they are missing a setup portion. 
+'Don Finch is out of town so I added error handling and checks so that it does not throw errors. Will 
+
+'OPEN DB CONNECTION
+F.ODBC.Connection!CONCOM.OpenConnection("GLOBAL_COMMON",V.Ambient.PUser,V.Ambient.PPass,7200)
+
+'GET GUI_GROUP FOR THIS WORKSTATION
+F.Intrinsic.String.Concat("SELECT GUI_GROUP FROM GUI_GROUP_MEMBERSHIP WHERE WID = '",V.System.ComputerName,"'",V.Local.sSQL)
+F.ODBC.Connection!CONCOM.OpenLocalRecordsetRO("RST",V.Local.sSQL)
+F.Intrinsic.control.If(V.ODBC.conCOM!rst.eof,=,True)
+	F.Intrinsic.UI.MSGBOX("This Workstation has not yet been registered to a GUI Group. Please Contact your administrator")
+	F.odbc.conCOM!RST.close
+	F.ODBC.connection!CONCOM.Close
+	F.Intrinsic.control.end
+F.Intrinsic.control.Else
+	V.Local.sGroup.set(v.ODBC.concom!rst.fieldvaltrim!GUI_GROUP)
+	F.ODBC.CONCOM!RST.CLOSE
+	'GET LOCATION FROM GUI GROUPO
+	F.Intrinsic.String.Concat("SELECT LEFT(DESCRIPTION, 2) AS LOCATION FROM GUI_GROUP_MASTER WHERE GROUP_ID = '",V.Local.SgROUP,"'",V.Local.sSQL)
+	F.ODBC.Connection!CONCOM.OpenLocalRecordsetRO("rst",V.Local.sSQL)
+	F.Intrinsic.Control.If(V.ODBC.CONCOM!rst.EOF, =, False)
+		V.Global.sWSLoc.Set(V.ODBC.CONCOM!RST.FIELDVALTRIM!LOCATION)
+	F.Intrinsic.Control.Endif
+	F.ODBC.CONCOM!RST.Close
+F.Intrinsic.control.EndIf
+F.ODBC.Connection!CONCOM.Close
+F.Intrinsic.Control.CallSub(V.Caller.Hook)
+
+Program.Sub.Main.End
+
+program.Sub.15742.start
+'DECLARE VARIABLES
+V.Local.i.Declare(Long)
+V.Local.iRows.Declare(Long)
+V.Local.sRowData.Declare(String)
+V.Local.sCols.Declare(String)
+V.Local.sSQL.Declare(String)
+V.Local.sUser.Declare(String)
+
+'OPEN DB CONNECTION
+F.ODBC.Connection!CONX.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+
+'CREATE A COPY OF THE BDF
+F.Intrinsic.BDF.Load("AUX001","AUX001")
+F.Intrinsic.BDF.Clone("AUX001","CLONE")
+F.Intrinsic.BDF.ReadRowCount("AUX001",V.Local.iRows)
+F.Intrinsic.Math.Sub(V.Local.iRows,1,V.Local.iRows)
+
+'LOOP THROUGH BDF, CHECK EMPLOYEE FOR CURRENT LOCATION. WRITE ROW TO CLONE BDF IF EMPLOYEE SHOULD BE VIEWED.
+F.Intrinsic.Control.For(V.Local.i,0,V.Local.iRows,1)
+	F.Intrinsic.BDF.ReadRow("AUX001",V.Local.I,V.Local.sRowData)
+	F.Intrinsic.String.Split(V.Local.sRowData,"|~|",V.Local.sCols)
+	F.Intrinsic.String.Concat("SELECT PR_USER_ID FROM V_EMPLOYEE_MSTR WHERE EMPLOYEE = '",V.Local.sCols(1).TRIM,"'",V.Local.sSQL)
+	F.ODBC.Connection!CONX.OpenLocalRecordsetRO("rst",V.Local.sSQL)
+	f.Intrinsic.Control.If(v.ODBC.CONX!rst.EOF,=,False)
+		V.Local.sUser.set(v.ODBC.conx!rst.fieldvaltrim!PR_USER_ID)
+		F.ODBC.conx!rst.Close
+		F.Intrinsic.String.Concat("SELECT TEXT1 FROM USER_OPTIONS WHERE OPTION_ID = '000014' AND SEQ = '0001' AND ID = '",V.Local.sUser,"'",V.Local.sSQL)
+		F.ODBC.Connection!CONX.OPENLOCALRECORDSETRO("RST",V.Local.sSQL)
+		f.Intrinsic.control.If(v.ODBC.conx!rst.eof,=,False)
+			F.Intrinsic.Control.If(v.Global.sWSLoc.TRIM,=,V.ODBC.CONX!RST.FIELDVALTRIM!TEXT1)
+				F.Intrinsic.BDF.WriteRow("CLONE",v.Local.sRowData)
+			F.Intrinsic.Control.EndIf
+		F.Intrinsic.control.EndIf
+		f.ODBC.CONX!rst.Close
+	F.Intrinsic.Control.Else
+		f.ODBC.CONX!rst.close
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.Next(V.Local.i)
+f.Intrinsic.BDF.Save("CLONE","AUX001")
+F.ODBC.Connection!CONX.Close
+F.Intrinsic.CONTROL.End
+
+program.Sub.15742.End
+
+Program.Sub.15743.Start
+'DECLARE VARIABLES
+V.Local.i.Declare(Long)
+V.Local.iRows.Declare(Long)
+V.Local.sRowData.Declare(String)
+V.Local.sCols.Declare(String)
+V.Local.sSQL.Declare(String)
+V.Local.sUser.Declare(String)
+
+'OPEN DB CONNECTION
+F.ODBC.Connection!CONX.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+
+'CREATE A COPY OF THE BDF
+F.Intrinsic.BDF.Load("AUX001","AUX001")
+F.Intrinsic.BDF.Clone("AUX001","CLONE")
+F.Intrinsic.BDF.ReadRowCount("AUX001",V.Local.iRows)
+F.Intrinsic.Math.Sub(V.Local.iRows,1,V.Local.iRows)
+
+'LOOP THROUGH BDF, CHECK EMPLOYEE FOR CURRENT LOCATION. WRITE ROW TO CLONE BDF IF EMPLOYEE SHOULD BE VIEWED.
+F.Intrinsic.Control.For(V.Local.i,0,V.Local.iRows,1)
+	F.Intrinsic.BDF.ReadRow("AUX001",V.Local.I,V.Local.sRowData)
+	F.Intrinsic.String.Split(V.Local.sRowData,"|~|",V.Local.sCols)
+	F.Intrinsic.String.Concat("SELECT PR_USER_ID FROM V_EMPLOYEE_MSTR WHERE EMPLOYEE = '",V.Local.sCols(1).TRIM,"'",V.Local.sSQL)
+	F.ODBC.Connection!CONX.OpenLocalRecordsetRO("RST",V.LOCAL.sSQL)
+	F.Intrinsic.Control.If(V.ODBC.CONX!rst.EOF, =, False)
+		V.Local.sUser.set(v.ODBC.conx!rst.fieldvaltrim!PR_USER_ID)
+	F.Intrinsic.Control.EndIf
+	F.ODBC.conx!rst.Close
+	F.Intrinsic.String.Concat("SELECT TEXT1 FROM USER_OPTIONS WHERE OPTION_ID = '000014' AND SEQ = '0001' AND ID = '",V.Local.sUser,"'",V.Local.sSQL)
+	F.ODBC.Connection!CONX.OPENLOCALRECORDSETRO("RST",V.Local.sSQL)
+	f.Intrinsic.control.If(v.ODBC.conx!rst.eof,=,False)
+		F.Intrinsic.Control.If(v.Global.sWSLoc.TRIM,=,V.ODBC.CONX!RST.FIELDVALTRIM!TEXT1)
+			F.Intrinsic.BDF.WriteRow("CLONE",v.Local.sRowData)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.control.EndIf
+	f.ODBC.CONX!rst.Close
+F.Intrinsic.Control.Next(V.Local.i)
+f.Intrinsic.BDF.Save("CLONE","AUX001")
+F.ODBC.Connection!CONX.Close
+F.Intrinsic.CONTROL.End
+
+Program.Sub.15743.End
+
+Program.Sub.15741.Start
+'DECLARE VARIABLES
+V.Local.i.Declare(Long)
+V.Local.iRows.Declare(Long)
+V.Local.sRowData.Declare(String)
+V.Local.sCols.Declare(String)
+V.Local.sSQL.Declare(String)
+V.Local.sLoc.Declare(String)
+V.Local.sJob.Declare(String)
+
+'OPEN DB CONNECTION
+F.ODBC.Connection!CONX.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+
+'CREATE A COPY OF THE BDF
+F.Intrinsic.BDF.Load("AUX002","AUX002")
+F.Intrinsic.BDF.Clone("AUX002","CLONE")
+F.Intrinsic.BDF.ReadRowCount("AUX002",V.Local.iRows)
+F.Intrinsic.Math.Sub(V.Local.iRows,1,V.Local.iRows)
+'F.Intrinsic.Debug.InvokeDebugger
+
+'LOOP THROUGH BDF, CHECK EMPLOYEE FOR CURRENT LOCATION. WRITE ROW TO CLONE BDF IF EMPLOYEE SHOULD BE VIEWED.
+F.Intrinsic.Control.For(V.Local.i,0,V.Local.iRows,1)
+	F.Intrinsic.BDF.ReadRow("AUX002",V.Local.I,V.Local.sRowData)
+	F.Intrinsic.String.Split(V.Local.sRowData,"|~|",V.Local.sCols)
+	F.Intrinsic.String.Split(V.Local.sCols(0).Trim,"-",V.Local.sJob)
+	F.Intrinsic.Control.If(V.Local.sJob.UBound,=,0)
+		F.Intrinsic.String.Build("SELECT Location FROM V_JOB_HEADER WHERE JOB ='{0}' AND SUFFIX = ''",V.Local.sJob(0).Trim,V.Local.sSQL)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.String.Build("SELECT Location FROM V_JOB_HEADER WHERE JOB ='{0}' AND SUFFIX = '{1}'",V.Local.sJob(0).Trim,V.Local.sJob(1).Trim,V.Local.sSQL)
+	F.Intrinsic.Control.EndIf
+'	F.ODBC.Connection!CONX.OpenLocalRecordsetRO("RST",V.LOCAL.sSQL)
+	F.ODBC.Connection!CONX.OpenLocalRecordsetRO("rst",V.Local.sSQL)
+	f.Intrinsic.Control.If(v.ODBC.CONX!rst.EOF,=,False)
+		V.Local.sLoc.set(v.ODBC.conx!rst.fieldvaltrim!Location)
+		F.Intrinsic.Control.If(V.Local.sLoc,=,V.Global.sWSLoc)
+			F.Intrinsic.BDF.WriteRow("CLONE",v.Local.sRowData)
+		F.Intrinsic.control.EndIf
+	F.Intrinsic.Control.EndIf
+	f.ODBC.CONX!rst.close
+F.Intrinsic.Control.Next(V.Local.i)
+f.Intrinsic.BDF.Save("CLONE","AUX002")
+F.ODBC.Connection!CONX.Close
+F.Intrinsic.CONTROL.End
+
+Program.Sub.15741.End
+
+Program.Sub.15954.Start
+'DECLARE VARIABLES
+V.Local.i.Declare(Long)
+V.Local.iRows.Declare(Long)
+V.Local.sRowData.Declare(String)
+V.Local.sCols.Declare(String)
+V.Local.sSQL.Declare(String)
+V.Local.sLoc.Declare(String)
+V.Local.sJob.Declare(String)
+
+'OPEN DB CONNECTION
+F.ODBC.Connection!CONX.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+
+'CREATE A COPY OF THE BDF
+F.Intrinsic.BDF.Load("AUX001","AUX001")
+F.Intrinsic.BDF.Clone("AUX001","CLONE")
+F.Intrinsic.BDF.ReadRowCount("AUX001",V.Local.iRows)
+F.Intrinsic.Math.Sub(V.Local.iRows,1,V.Local.iRows)
+'F.Intrinsic.Debug.InvokeDebugger
+
+'LOOP THROUGH BDF, CHECK EMPLOYEE FOR CURRENT LOCATION. WRITE ROW TO CLONE BDF IF EMPLOYEE SHOULD BE VIEWED.
+F.Intrinsic.Control.For(V.Local.i,0,V.Local.iRows,1)
+	F.Intrinsic.BDF.ReadRow("AUX001",V.Local.I,V.Local.sRowData)
+	F.Intrinsic.String.Split(V.Local.sRowData,"|~|",V.Local.sCols)
+	F.Intrinsic.String.Split(V.Local.sCols(1).Trim,"-",V.Local.sJob)
+	F.Intrinsic.Control.If(V.Local.sJob.UBound,=,0)
+		F.Intrinsic.String.Build("SELECT Location FROM V_JOB_HEADER WHERE JOB ='{0}' AND SUFFIX = ''",V.Local.sJob(0).Trim,V.Local.sSQL)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.String.Build("SELECT Location FROM V_JOB_HEADER WHERE JOB ='{0}' AND SUFFIX = '{1}'",V.Local.sJob(0).Trim,V.Local.sJob(1).Trim,V.Local.sSQL)
+	F.Intrinsic.Control.EndIf
+'	F.ODBC.Connection!CONX.OpenLocalRecordsetRO("RST",V.LOCAL.sSQL)
+	F.ODBC.Connection!CONX.OpenLocalRecordsetRO("rst",V.Local.sSQL)
+	f.Intrinsic.Control.If(v.ODBC.CONX!rst.EOF,=,False)
+		V.Local.sLoc.set(v.ODBC.conx!rst.fieldvaltrim!Location)
+		F.Intrinsic.Control.If(V.Local.sLoc,=,V.Global.sWSLoc)
+			F.Intrinsic.BDF.WriteRow("CLONE",v.Local.sRowData)
+		F.Intrinsic.control.EndIf
+	F.Intrinsic.Control.EndIf
+	f.ODBC.CONX!rst.close
+F.Intrinsic.Control.Next(V.Local.i)
+f.Intrinsic.BDF.Save("CLONE","AUX001")
+F.ODBC.Connection!CONX.Close
+F.Intrinsic.CONTROL.End
+
+Program.Sub.15954.End
+
+Program.Sub.Comments.Start
+${$0$}$GCG_MIR_GUI_BY_LOC$}$BLEFLER$}$8/15/2014 10:24:34 AM
+Program.Sub.Comments.End
+
